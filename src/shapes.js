@@ -426,60 +426,141 @@ function createRiggedCylinder(params) {
     return { mesh: root, updateFold: updateFold };
 }
 
-// --- 6. KERUCUT (Cone) ---
+// --- 6. KERUCUT (Cone) - Smooth Vertex Morphing ---
 function createRiggedCone(params) {
     const { r, t } = params;
     const root = new THREE.Group();
-    const anims = [];
-    const SEGMENTS = 48;
 
-    const slant = Math.sqrt(r * r + t * t);
-    const circApothem = r * Math.cos(Math.PI / SEGMENTS);
-    const chord = 2 * r * Math.sin(Math.PI / SEGMENTS);
-    const triHeight = Math.sqrt(slant * slant - (chord / 2) * (chord / 2));
+    // Config: High segmentation for smooth curve
+    const segW = 128; // Angular direction
+    const segH = 32;  // Radial/Height direction
 
-    const baseGeometry = createPolyConfig(r, SEGMENTS);
-    baseGeometry.rotateX(Math.PI / 2);
+    // Constants
+    const s = Math.sqrt(r * r + t * t); // Slant height
+    const circumference = 2 * Math.PI * r;
+    const sectorAngle = circumference / s; // Angle of the unfolded sector
 
-    const base = makeMesh(baseGeometry, COLORS.cone);
-    base.rotation.x = 0;
-    base.rotation.y = -Math.PI / 2 - (Math.PI / SEGMENTS);
+    // 1. Body (Selimut) - Single Mesh
+    // We use a PlaneGeometry as the container for our grid of vertices.
+    // Dimensions don't matter much as we override positions, but 1x1 is fine.
+    const bodyGeom = new THREE.PlaneGeometry(1, 1, segW, segH);
+
+    // Material: DoubleSide is essential so it's visible from inside and out
+    const bodyMaterial = new THREE.MeshPhongMaterial({
+        color: COLORS.cone,
+        side: THREE.DoubleSide,
+        shininess: 30,
+        flatShading: false // Smooth shading for the cone
+    });
+
+    const body = new THREE.Mesh(bodyGeom, bodyMaterial);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    root.add(body);
+
+    // Pre-calculate variables for the loop to save time
+    const posAttribute = bodyGeom.attributes.position;
+    const count = posAttribute.count;
+
+    // Warning: PlaneGeometry construction usually puts vertices in row-major order.
+    // We need to know which vertex corresponds to which (u, v).
+    // PlaneGeometry(w, h, sw, sh):
+    // x goes 0..1 (sw steps), y goes 1..0 (sh steps) usually?
+    // Let's rely on UVs or just Index math.
+    // Index i corresponds to:
+    // ix = i % (segW + 1)
+    // iy = Math.floor(i / (segW + 1))
+    // u = ix / segW
+    // v = iy / segH (Note: PlaneGeometry often creates Y from top (+height/2) to bottom (-height/2))
+    // Let's explicitly calculate u,v from index to be safe.
+
+    // 2. Base (Alas) - Circle
+    // Pivot at the connection point (South pole: 0, 0, r)
+    // Solid: Flat on floor at (0,0,0).
+    // Net: Flat on floor at (0,0,0). 
+    // Since the body unrolls *away* from the base, the base stays static.
+    const baseGeom = new THREE.CircleGeometry(r, 64);
+    baseGeom.rotateX(-Math.PI / 2); // Lay flat on XZ
+    const base = new THREE.Mesh(baseGeom, createMaterial(COLORS.cone));
+    base.position.set(0, 0, 0); // Always at origin
     root.add(base);
 
-    const angleAtBase = Math.atan2(t, circApothem);
-    const closedA = -(Math.PI / 2 - angleAtBase);
-    const openA = Math.PI / 2;
+    // Add Edges to Base for aesthetics
+    const baseEdges = createEdges(baseGeom);
+    base.add(baseEdges);
 
-    const h1 = createHinge(base, new THREE.Vector3(0, 0, -circApothem), new THREE.Vector3(1, 0, 0), closedA);
-    const segGeom = createTriConfig(chord, triHeight);
-    const s1 = makeMesh(segGeom, COLORS.cone);
-    h1.add(s1);
-    anims.push(v => setHingeAngle(h1, closedA + (openA - closedA) * easeOut(v)));
+    // We can also add edges to Body, but standard EdgesGeometry on a high-seg mesh looks bad (Too many lines).
+    // We might want an Outline (Wireframe) only on the border? 
+    // For now, let's skip body edges to ensure "Smooth" look as requested ("tidak ada kipas garis").
 
-    const convexAngle = (2 * Math.PI) / SEGMENTS;
-    const vApex = new THREE.Vector3(0, t, 0);
-    const vR1 = new THREE.Vector3(r, 0, 0);
-    const vR2 = new THREE.Vector3(r * Math.cos(convexAngle), 0, r * Math.sin(convexAngle));
-    const n1 = new THREE.Vector3().subVectors(vR1, vApex).cross(new THREE.Vector3().subVectors(vR2, vApex)).normalize();
-    const n2 = n1.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), convexAngle);
-    const dihedral = n1.angleTo(n2);
+    // UPDATE FUNCTION
+    const updateFold = (val) => {
+        // val: 1 (Net/Open) -> 0 (Solid/Closed) -> slider default is 0=Solid, 1=Open
 
-    let current = s1;
-    const hingeAxis = new THREE.Vector3(-chord / 2, triHeight, 0).normalize();
-    const pivotPos = new THREE.Vector3(chord / 2, 0, 0);
-    const rotZ = -2 * Math.atan2(chord / 2, triHeight);
+        // We iterate all vertices of the Body Plane
+        const positions = bodyGeom.attributes.position;
+        const totalVerts = positions.count;
+        const stride = segW + 1;
 
-    for (let i = 1; i < SEGMENTS; i++) {
-        const h = createHinge(current, pivotPos, hingeAxis, dihedral);
-        const next = makeMesh(segGeom, COLORS.cone);
-        next.position.set(chord / 2, 0, 0);
-        next.rotation.z = rotZ;
-        h.add(next);
-        anims.push(v => setHingeAngle(h, dihedral * (1 - easeOut(v))));
-        current = next;
-    }
+        for (let i = 0; i < totalVerts; i++) {
+            const ix = i % stride;
+            const iy = Math.floor(i / stride);
 
-    return { mesh: root, updateFold: t => anims.forEach(f => f(t)) };
+            // u: 0 (Start Seam) -> 1 (End Seam)
+            const u = ix / segW;
+
+            // v: 0 (Apex) -> 1 (Rim)
+            // PlaneGeometry Y usually goes Top->Bottom. 
+            // Let's assume ROW 0 is TOP (Apex), ROW LAST is BOTTOM (Rim).
+            const v = iy / segH;
+
+            // --- NET STATE (Flat Sector) ---
+            // Apex at (0, 0, r + s) (Backwards Z)? 
+            // Connection point (u=0.5, v=1) should be at (0, 0, r).
+            // Let's place Apex at Z = r + s.
+            // Center Line (u=0.5) runs along Z axis.
+
+            const beta = (u - 0.5) * sectorAngle; // Angle from center line
+            const distFromApex = v * s;
+
+            // Flat on Floor (XZ)
+            // Apex is at (0, 0, r + s).
+            // Vector from Apex points towards -Z (towards origin).
+            // Rotate vector by beta.
+            const xNet = distFromApex * Math.sin(beta);
+            const zNet = (r + s) - distFromApex * Math.cos(beta);
+            const yNet = 0;
+
+            // --- SOLID STATE (Cone) ---
+            // Apex at (0, t, 0).
+            // Base Center at (0, 0, 0).
+            // Connection point (u=0.5, v=1) is (0, 0, r).
+
+            const alpha = (u - 0.5) * 2 * Math.PI; // Full circle
+            const rCurr = v * r; // Radius at this height
+            const hCurr = (1 - v) * t; // Height (v=0 is Top/t, v=1 is Bottom/0)
+
+            const xSolid = rCurr * Math.sin(alpha);
+            const ySolid = hCurr;
+            const zSolid = rCurr * Math.cos(alpha);
+
+            // --- INTERPOLATION ---
+            // Use Linear Interpolation (Lerp)
+            const px = xSolid + (xNet - xSolid) * val;
+            const py = ySolid + (yNet - ySolid) * val;
+            const pz = zSolid + (zNet - zSolid) * val;
+
+            positions.setXYZ(i, px, py, pz);
+        }
+
+        positions.needsUpdate = true;
+        bodyGeom.computeVertexNormals(); // Crucial for smooth shading
+    };
+
+    // Initial update
+    updateFold(0);
+
+    return { mesh: root, updateFold: updateFold };
 }
 
 // ===================== SCENE MANAGER =====================

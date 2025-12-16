@@ -7,7 +7,7 @@ const UIManager = (function () {
     let animateOpenBtn, animateCloseBtn, resetCameraBtn, descriptionPanel, autoOpenBtn, autoCloseBtn;
     let dimensionsContainer, formulaDisplay;
     let foldSlider;
-    let currentShape = 'cube';
+    let currentShape = null; // Start null to ensure selectShape('cube') triggers
     let currentMode = 'solid'; // 'solid', 'net', or 'animating'
 
     const shapeConfig = {
@@ -132,7 +132,7 @@ const UIManager = (function () {
             // Keeping the improved styling
             div.className = 'parameter';
             div.innerHTML = `
-                <label for="param-${key}">${param.label}</label>
+                <label for="param-${key}">${param.label} (cm)</label>
                 <input type="number" id="param-${key}" 
                        min="${param.min}" max="${param.max}" step="${param.step}" value="${param.val}">
             `;
@@ -159,12 +159,12 @@ const UIManager = (function () {
             <div class="formula-item">
                 <strong>Volume</strong>
                 <p class="formula-math">${result.volFormula}</p>
-                <p>= ${formatNumber(result.vol)}</p>
+                <p>= ${formatNumber(result.vol)} cm³</p>
             </div>
             <div class="formula-item">
                 <strong>Luas Permukaan</strong>
                 <p class="formula-math">${result.saFormula}</p>
-                <p>= ${formatNumber(result.sa)}</p>
+                <p>= ${formatNumber(result.sa)} cm²</p>
             </div>
         `;
 
@@ -264,9 +264,8 @@ const UIManager = (function () {
             });
         }
 
-        updateDescription();
-        renderDimensions(currentShape);
-        updateCalculations(currentShape);
+        // Initialize with default shape
+        selectShape('cube');
     }
 
     return {

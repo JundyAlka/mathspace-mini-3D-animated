@@ -25,9 +25,8 @@ function initApp() {
     window.UIManager.initUI();
 
     // 3. Load the default shape (Kubus)
-    // This is already handled inside UIManager.initUI -> renderParameters/renderResults -> updateShapeAndCalculations
-    // Calling it again here ensures the initial state is fully set up.
-    window.UIManager.updateShapeAndCalculations();
+    // This is now handled inside UIManager.initUI -> selectShape('cube')
+    // so we don't need to do anything here.
 }
 
 // Start checking for dependencies once the DOM is ready
