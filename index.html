@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathSpace Mini</title>
+    <link rel="icon" href="assets/favicon.png" type="image/png">
+    <link rel="stylesheet" href="styles/base.css">
+</head>
+
+<body>
+    <header>
+        <img src="assets/logo.png" alt="Logo MathSpace Mini" class="logo">
+        <h1>MathSpace Mini</h1>
+    </header>
+    <main class="container">
+        <!-- Kolom 1: Pilih Bangun -->
+        <aside class="sidebar" id="shape-selector">
+            <h2>Pilih Bangun Ruang</h2>
+            <div class="shape-options">
+                <button id="select-cube" data-shape="cube" class="active">Kubus</button>
+                <button id="select-box" data-shape="box">Balok</button>
+                <button id="select-cylinder" data-shape="cylinder">Tabung</button>
+                <button id="select-pyramid" data-shape="pyramid">Limas</button>
+                <button id="select-cone" data-shape="cone">Kerucut</button>
+                <button id="select-prism" data-shape="prism">Prisma</button>
+            </div>
+            <button id="reset-camera-btn" class="action-btn">Reset Kamera</button>
+        </aside>
+
+        <!-- Kolom 2: Canvas 3D -->
+        <section class="canvas-container">
+            <div id="canvas-container" style="width: 100%; height: 100%;">
+                <!-- Three.js canvas will be appended here -->
+            </div>
+        </section>
+
+        <!-- Kolom 3: Kontrol Animasi -->
+        <aside class="sidebar" id="parameter-panel">
+            <h2>Animasi Jaring-jaring</h2>
+
+            <div class="animation-controls">
+                <div class="control-group">
+                    <label for="fold-slider">Buka / Tutup</label>
+                    <input type="range" id="fold-slider" min="0" max="1" step="0.01" value="0">
+                    <div class="slider-labels">
+                        <span>Tutup</span>
+                        <span>Buka</span>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button id="animate-open-btn" class="action-btn">Buka Otomatis</button>
+                    <button id="animate-close-btn" class="action-btn secondary">Tutup Otomatis</button>
+                </div>
+            </div>
+
+            <!-- New: Dimension Controls -->
+            <div id="dimension-controls" class="parameter-group">
+                <h3>Atur Ukuran</h3>
+                <div id="dimensions-container">
+                    <!-- Inputs injected by JS -->
+                </div>
+            </div>
+
+            <!-- New: Formula Display -->
+            <div id="educational-info" class="info-box">
+                <h3>Rumus & Kalkulasi</h3>
+                <div id="formula-display">
+                    <!-- Formulas injected by JS -->
+                </div>
+            </div>
+
+            <div id="shape-description" class="info-box">
+                <!-- Description will be injected here -->
+            </div>
+        </aside>
+    </main>
+
+    <!-- Three.js and OrbitControls via CDN -->
+    <!-- Using a stable version of Three.js and OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+
+    <!-- MathJax for Formula Rendering -->
+    <!-- <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script> -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Add dat.GUI for debugging (optional) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+
+    <!-- No inline styles - all styles are in base.css -->
+
+    <!-- Local Scripts -->
+    <!-- Local Scripts -->
+    <script src="src/math.js"></script>
+    <!-- <script src="src/utils/edgeAdjacency.js"></script> -->
+    <!-- <script src="src/animation/hingeUnfold.js"></script> -->
+    <!-- <script src="src/animation/netAnimator.js"></script> -->
+    <script src="src/shapes.js"></script>
+    <script src="src/ui.js"></script>
+    <script src="src/main.js"></script>
+</body>
+
+</html>
